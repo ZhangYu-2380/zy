@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from copy import deepcopy
 from datetime import datetime, timezone
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -17,6 +18,9 @@ import json
 import mimetypes
 import os
 import secrets
+import threading
+import time
+import random
 
 
 ROOT = Path(__file__).resolve().parent
@@ -24,7 +28,7 @@ STATIC_DIR = Path(os.getenv("MONITOR_STATIC_DIR", ROOT / "dist" / "client")).res
 HOST = os.getenv("MONITOR_HOST", "127.0.0.1")
 PORT = int(os.getenv("MONITOR_PORT", "8000"))
 PASSWORD = os.getenv("MONITOR_PASSWORD", "demo123")
-SECRET_KEY = os.getenv("MONITOR_SECRET_KEY", "change-me-in-production")
+SECRET_KEY = os.getenv("MONITOR_SECRET_KEY") or secrets.token_hex(32)
 
 FLOW_DEFINITIONS = [
     ("开市流程", 150), ("LTS冒烟", 120), ("系统重启", 130),
@@ -46,7 +50,11 @@ def valid_token(token: str) -> bool:
     if not token or "." not in token:
         return False
     value, digest = token.rsplit(".", 1)
-    return value == "authenticated" and hmac.compare_digest(sign(value).rsplit(".", 1)[1], digest)
+    try:
+        label, expires = value.split(":")
+        return label == "authenticated" and int(expires) > time.time() and hmac.compare_digest(sign(value).rsplit(".", 1)[1], digest)
+    except ValueError:
+        return False
 
 
 def load_fixture() -> list[tuple[str, int | None]]:
@@ -103,8 +111,8 @@ def load_demo_flows() -> list[dict]:
     return flows
 
 
-def dashboard() -> dict:
-    flows = load_demo_flows()
+def dashboard(flows=None) -> dict:
+    flows = flows if flows is not None else load_demo_flows()
     groups = []
     for index, (name, total) in enumerate(FLOW_DEFINITIONS):
         rows = [flow for flow in flows if flow["bigIndex"] == index]
@@ -124,25 +132,83 @@ def dashboard() -> dict:
     }
 
 
-def alerts() -> dict:
+def alerts(flows=None) -> dict:
     """由异常流程生成当前告警示例；真实接入时改为读取监控平台或告警表。"""
     now = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S")
     devices = [("10.21.8.17", "生产数据库-01", "资金清算", "Zabbix"), ("10.21.5.32", "应用节点-A03", "交易中台", "应用日志"), ("10.21.9.46", "文件服务器-02", "批处理平台", "Prometheus")]
     result = []
-    for index, flow in enumerate(flow for flow in load_demo_flows() if flow["overall"] in ("error", "timeout")):
-        ip, device, system, source = devices[index % len(devices)]
+    for flow in (flow for flow in (flows if flows is not None else load_demo_flows()) if flow["overall"] in ("error", "timeout")):
+        ip, device, system, source = devices[(int(flow["id"].split("-")[1]) - 1) % len(devices)]
         failed = next(operation for operation in flow["operations"] if operation["status"] in ("error", "timeout"))
         result.append({
-            "id": f"ALT-{flow['id'].replace('SF-', '')}",
+            "id": flow.get("eventId", f"ALT-{flow['id'].replace('SF-', '')}"),
             "level": "紧急" if flow["overall"] == "error" else "严重",
-            "ip": ip, "device": device, "system": system, "source": source, "time": now,
+            "ip": ip, "device": device, "system": system, "source": source, "time": flow.get("eventTime", now),
             "content": f"{flow['name']}：{failed['issue']}", "status": "未确认",
             "flowId": flow["id"], "operationIndex": failed["index"],
         })
+    result.sort(key=lambda item: (item["time"], item["id"]), reverse=True)
     return {"total": len(result), "items": result}
 
 
+STATE_LOCK = threading.Lock()
+STATE = load_demo_flows()
+for flow in STATE:
+    flow["eventTime"] = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S")
+    flow["eventId"] = secrets.token_hex(12)
+
+
+def simulate():
+    while True:
+        time.sleep(5)
+        simulate_tick()
+
+
+def simulate_tick():
+    with STATE_LOCK:
+        # Replace an incident without changing the count: new event IDs must still trigger sound.
+        problems = [f for f in STATE if f["overall"] in ("error", "timeout")]
+        if problems:
+            recovered = random.choice(problems)
+            recovered.update(overall="done", operations=build_operations("done", None))
+        healthy = [f for f in STATE if f["overall"] == "done"]
+        if not healthy:
+            return
+        incident = random.choice(healthy)
+        status = random.choice(["error", "timeout"])
+        incident.update(overall=status, operations=build_operations(status, random.randrange(10)),
+                        eventId=secrets.token_hex(12), eventTime=datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S"))
+        running = random.choice(STATE)
+        if running["overall"] not in ("error", "timeout"):
+            running.update(overall="running", operations=build_operations("running", random.randrange(10)))
+
+
+def snapshot():
+    with STATE_LOCK:
+        flows = deepcopy(STATE)
+    return {"dashboard": dashboard(flows), "alerts": alerts(flows),
+            "updatedAt": datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S"), "mode": "simulation"}
+
+
 class Handler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        if urlparse(self.path).path != "/api/login":
+            return self.send_json({"error": "not found"}, 404)
+        try:
+            size = int(self.headers.get("Content-Length", "0"))
+            if size < 1 or size > 4096:
+                return self.send_json({"error": "invalid request"}, 400)
+            body = json.loads(self.rfile.read(size))
+            if not isinstance(body, dict) or not hmac.compare_digest(str(body.get("password", "")), PASSWORD):
+                return self.send_json({"error": "密码错误"}, 401)
+        except (ValueError, TypeError):
+            return self.send_json({"error": "invalid request"}, 400)
+        self.send_response(200)
+        token = sign(f"authenticated:{int(time.time()) + 28800}")
+        self.send_header("Set-Cookie", f"monitor_auth={token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
     def log_message(self, _format: str, *_args: object) -> None:
         return
 
@@ -195,13 +261,16 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path.startswith("/api/"):
             if not self.authenticated():
                 return self.send_json({"error": "unauthorized"}, 401)
+            if parsed.path == "/api/snapshot":
+                return self.send_json(snapshot())
             if parsed.path == "/api/dashboard":
-                return self.send_json(dashboard())
+                return self.send_json(snapshot()["dashboard"])
             if parsed.path == "/api/alerts":
-                return self.send_json(alerts())
+                return self.send_json(snapshot()["alerts"])
             if parsed.path == "/api/flow":
                 flow_id = params.get("id", [""])[0]
-                flow = next((item for item in load_demo_flows() if item["id"] == flow_id), None)
+                with STATE_LOCK:
+                    flow = next((item.copy() for item in STATE if item["id"] == flow_id), None)
                 return self.send_json(flow or {"error": "小流程不存在"}, 200 if flow else 404)
             return self.send_json({"error": "not found"}, 404)
 
@@ -212,14 +281,14 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def run() -> None:
-    if PASSWORD == "demo123" or SECRET_KEY == "change-me-in-production":
-        print("警告：当前为演示凭据；接入真实数据前必须设置 MONITOR_PASSWORD 和 MONITOR_SECRET_KEY。")
+    if PASSWORD == "demo123":
+        print("当前为本地实时模拟，默认访问密码：demo123。")
     print(f"监控服务：http://{HOST}:{PORT}")
     print("流程接口：/api/dashboard，告警接口：/api/alerts，健康检查：/api/health")
+    threading.Thread(target=simulate, daemon=True).start()
     ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
 
 
 
 if __name__ == "__main__":
     run()
-

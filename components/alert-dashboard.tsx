@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { isAlarmSoundEnabled, playAlarmSound, setAlarmSoundEnabled, stopAlarmSound } from "@/lib/alarm-audio";
 
 type Level = "紧急" | "严重" | "警告" | "提示";
 
-type Alert = {
+export type Alert = {
   id: string;
   level: Level;
   ip: string;
@@ -18,7 +18,7 @@ type Alert = {
   status: "未确认" | "处理中" | "已恢复";
 };
 
-const alerts: Alert[] = [
+export const demoAlerts: Alert[] = [
   { id: "ALT-240916-001", level: "紧急", ip: "10.21.8.17", device: "生产数据库-01", system: "资金清算", source: "Zabbix", time: "2026-09-16 13:28:41", content: "主库连接数达到 96%，存在业务阻塞风险", status: "未确认" },
   { id: "ALT-240916-002", level: "严重", ip: "10.21.5.32", device: "应用节点-A03", system: "交易中台", source: "应用日志", time: "2026-09-16 13:25:18", content: "订单路由服务连续 5 分钟错误率超过阈值", status: "处理中" },
   { id: "ALT-240916-003", level: "严重", ip: "10.21.9.46", device: "文件服务器-02", system: "批处理平台", source: "Prometheus", time: "2026-09-16 13:22:06", content: "磁盘可用空间低于 10%", status: "未确认" },
@@ -31,21 +31,15 @@ const alerts: Alert[] = [
 
 const levelClass: Record<Level, string> = { 紧急: "critical", 严重: "high", 警告: "warning", 提示: "info" };
 
-export function AlertDashboard() {
+export function AlertDashboard({ alerts = demoAlerts, updatedAt = "静态演示" }: { alerts?: Alert[]; updatedAt?: string }) {
   const [level, setLevel] = useState<Level | "全部">("全部");
-  const [selectedId, setSelectedId] = useState(alerts[0].id);
+  const [selectedId, setSelectedId] = useState(alerts[0]?.id);
   const [soundEnabled, setSoundEnabled] = useState(false);
-  const previousAlarmCountRef = useRef<number | null>(null);
-  const visibleAlerts = useMemo(() => level === "全部" ? alerts : alerts.filter((alert) => alert.level === level), [level]);
+  const visibleAlerts = useMemo(() => level === "全部" ? alerts : alerts.filter((alert) => alert.level === level), [level, alerts]);
   const selected = alerts.find((alert) => alert.id === selectedId) ?? visibleAlerts[0];
   const active = alerts.filter((alert) => alert.status !== "已恢复").length;
-  const alarmCount = alerts.filter((alert) => (alert.level === "紧急" || alert.level === "严重") && alert.status !== "已恢复").length;
 
   useEffect(() => setSoundEnabled(isAlarmSoundEnabled()), []);
-  useEffect(() => {
-    if (previousAlarmCountRef.current !== null && alarmCount > previousAlarmCountRef.current && soundEnabled) void playAlarmSound();
-    previousAlarmCountRef.current = alarmCount;
-  }, [alarmCount, soundEnabled]);
 
   const toggleSound = async () => {
     if (soundEnabled) {
@@ -70,7 +64,7 @@ export function AlertDashboard() {
         <div className="alert-summary" aria-label="告警汇总">
           <span><b>{active}</b> 条待处置</span>
           <span><b>{alerts.filter((alert) => alert.level === "紧急").length}</b> 条紧急</span>
-          <span>最后更新 2026-09-16 13:28:41</span>
+          <span>最后更新 {updatedAt}</span>
         </div>
       </header>
 
@@ -86,7 +80,6 @@ export function AlertDashboard() {
           <button className={`sound-button ${soundEnabled ? "enabled" : ""}`} type="button" aria-pressed={soundEnabled} onClick={toggleSound}>
             {soundEnabled ? "🔊 关闭告警声音" : "🔇 开启告警声音"}
           </button>
-          <button className="sound-button test" type="button" onClick={playAlarmSound}>测试警报音</button>
           <a className="flow-screen-link" href="?screen=flow">进入流程监控大屏 →</a>
         </div>
       </section>
@@ -126,4 +119,3 @@ export function AlertDashboard() {
     </main>
   );
 }
-

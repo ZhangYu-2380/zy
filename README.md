@@ -21,6 +21,35 @@ GitHub Pages 演示地址：
 
 ## 本地运行
 
+### 实时模拟（推荐）
+
+先运行 `pnpm run build` 生成最新版网页，然后启动合并后的 Python 服务：
+
+```powershell
+& "C:\Users\23581\AppData\Local\Programs\Python\Python314\python.exe" .\monitor_demo_v4.py
+```
+
+打开 http://127.0.0.1:8000，默认模拟密码为 `demo123`。Python 每 5 秒改变流程状态；两个界面每 3 秒通过 `/api/snapshot` 获取同一份数据。点击“开启告警声音”后，新出现的异常会播放声音，即使异常总数不变也能识别。首次读取仅作为基线，不播放历史告警。
+
+顶部显示最后更新时间；服务断开时保留上次数据并提示重试。告警时间保留实际模拟发生时间。此版本没有连接生产数据库。
+
+可以用环境变量 `MONITOR_PASSWORD` 修改密码，用 `MONITOR_PORT` 修改端口。默认只监听本机。登录会话有效期 8 小时，重启服务后需重新登录。
+
+GitHub Pages 仍为静态演示，不运行 Python。代码变更后需要重新构建并重启本地服务。
+
+### 在代码中更换警报音
+
+界面仅显示告警声音开关。把下载好的 MP3 放进 `public/audio/`（例如 `alarm.mp3`），在 `lib/alarm-config.ts` 中修改：
+
+```typescript
+export const ALARM_AUDIO_PATH: string | null = "./audio/alarm.mp3";
+export const ALARM_AUDIO_VOLUME = 0.7;
+```
+
+流程和监控两页共用这个配置。修改后运行 `pnpm run build` 并刷新网页。设回 `null` 可恢复内置警报音。MP3 加载失败会回退到内置声音；关闭声音会立即停止播放。
+
+### 前端开发预览
+
 运行环境：Node.js 22 或更高版本、pnpm 11。
 
 ```bash

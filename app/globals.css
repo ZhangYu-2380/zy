@@ -81,8 +81,13 @@
   --font-sans: Inter, "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
 }
 
+.connection-banner { height: 28px; padding: 4px 12px; background: #172554; color: #dbeafe; font-size: 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.monitor-login-overlay { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: rgba(2, 6, 23, .9); }
+.monitor-login-card { width: min(380px, 90vw); padding: 26px; border: 1px solid #475569; border-radius: 12px; background: #0f172a; color: #e2e8f0; display: grid; gap: 14px; }
+.monitor-login-card input { padding: 10px; border: 1px solid #64748b; border-radius: 6px; background: #1e293b; color: white; }
+.monitor-login-card button { padding: 10px; background: #2563eb; color: white; border-radius: 6px; cursor: pointer; }
 .alert-page {
-  min-height: 100vh;
+  min-height: calc(100vh - 28px);
   padding: clamp(20px, 2vw, 42px);
   background: radial-gradient(circle at 90% 0%, #17355a 0, transparent 31%), #07111f;
   color: #e5e7eb;
@@ -99,12 +104,17 @@
 .alert-filter-group { display: flex; gap: 8px; }.alert-filter-group button { border: 1px solid #314762; border-radius: 6px; padding: 7px 14px; background: #101c2d; color: #b9c8d9; font-size: 13px; cursor: pointer; }.alert-filter-group button.active { border-color: #3b82f6; background: #1d4ed8; color: #fff; }
 .alert-toolbar-actions { display: flex; align-items: center; gap: 10px; }.sound-button { border: 1px solid #465d78; border-radius: 6px; padding: 7px 11px; background: #101c2d; color: #cbd5e1; font-size: 12px; cursor: pointer; }.sound-button:hover { border-color: #60a5fa; color: #fff; }.sound-button.enabled { border-color: #22c55e; background: #14532d; color: #bbf7d0; }.sound-button.test { color: #fcd34d; }
 .flow-screen-link { color: #93c5fd; font-size: 13px; text-decoration: none; }.flow-screen-link:hover { color: #fff; }
-.alert-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 16px; height: calc(100vh - 183px); min-height: 430px; }
+.alert-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 16px; height: calc(100vh - 211px); min-height: 400px; }
 .alert-table-panel, .alert-detail { border: 1px solid #29405a; border-radius: 10px; background: #0d1929; overflow: hidden; }
 .alert-table-title { display: flex; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #29405a; color: #e2e8f0; }.alert-table-title span { color: #7f96ad; font-size: 12px; }
 .alert-table-scroll { height: calc(100% - 51px); overflow: auto; } .alert-table-scroll table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12px; }.alert-table-scroll th { position: sticky; top: 0; z-index: 1; padding: 11px 10px; background: #132236; color: #8ea8c0; font-size: 11px; font-weight: 500; text-align: left; white-space: nowrap; }.alert-table-scroll td { padding: 12px 10px; border-bottom: 1px solid #1d3045; color: #cbd5e1; vertical-align: middle; }.alert-table-scroll tbody tr { cursor: pointer; transition: background .15s; }.alert-table-scroll tbody tr:hover, .alert-table-scroll tbody tr.selected { background: #172b43; }.alert-table-scroll th:nth-child(1) { width: 60px; }.alert-table-scroll th:nth-child(2) { width: 138px; }.alert-table-scroll th:nth-child(3) { width: 92px; }.alert-table-scroll th:nth-child(4) { width: 72px; }.alert-table-scroll th:nth-child(5) { width: 90px; }.alert-table-scroll th:nth-child(7) { width: 66px; }.alert-table-scroll td strong { display: block; color: #e5edf7; font-size: 12px; }.alert-table-scroll td small { display: block; margin-top: 3px; color: #71859b; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }.content-cell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.time-cell { color: #a8bacb; white-space: nowrap; }
 .level-tag, .status-label { display: inline-block; border-radius: 4px; padding: 3px 6px; font-size: 11px; font-weight: 650; white-space: nowrap; }.level-tag.critical { color: #fecaca; background: #7f1d1d; }.level-tag.high { color: #fed7aa; background: #7c2d12; }.level-tag.warning { color: #fef08a; background: #713f12; }.level-tag.info { color: #bae6fd; background: #0c4a6e; }.status-label.open { color: #fecaca; }.status-label.handling { color: #fde68a; }.status-label.resolved { color: #86efac; }
 .alert-detail { padding: 18px; }.detail-heading { display: flex; justify-content: space-between; align-items: center; margin: 12px 0; }.detail-heading strong { color: #f8fafc; font-size: 13px; }.alert-detail h2 { min-height: 74px; margin: 0 0 16px; color: #eaf1f8; font-size: 17px; line-height: 1.45; }.alert-detail dl { margin: 0; border-top: 1px solid #29405a; }.alert-detail dl div { display: grid; grid-template-columns: 78px 1fr; gap: 8px; padding: 10px 0; border-bottom: 1px solid #1d3045; font-size: 12px; }.alert-detail dt { color: #7791a8; }.alert-detail dd { margin: 0; color: #d5e2ee; overflow-wrap: anywhere; }.detail-note { margin-top: 16px; padding: 12px; border-left: 3px solid #3b82f6; background: #112844; font-size: 12px; }.detail-note strong { color: #bfdbfe; }.detail-note p { margin: 7px 0 0; color: #a9bfce; line-height: 1.55; }
+.alert-table-scroll table { min-width: 850px; }
+.alert-table-scroll th:nth-child(4) { width: 96px; }
+.alert-table-scroll th:nth-child(5) { width: 170px; }
+.alert-table-scroll td { overflow-wrap: anywhere; }
+.alert-table-scroll .time-cell { font-variant-numeric: tabular-nums; }
 @media (max-width: 850px) { .alert-top, .alert-toolbar { align-items: flex-start; flex-direction: column; }.alert-summary, .alert-toolbar-actions { flex-wrap: wrap; }.alert-workspace { grid-template-columns: 1fr; height: auto; }.alert-table-panel { min-height: 480px; }.alert-detail { min-height: 340px; } }
 
 
@@ -145,7 +155,7 @@ p { margin:0; }
 *{box-sizing:border-box}
 body{margin:0;font-family:Inter,"PingFang SC","Microsoft YaHei",sans-serif;background:#07111f;color:#e5e7eb}
 /* A 4K display at 300% scaling has about 1280 x 720 CSS pixels. */
-.monitor-page{height:100vh;height:100dvh;padding:12px;display:grid;grid-template-rows:auto auto minmax(0,1fr);gap:10px}
+.monitor-page{height:calc(100vh - 28px);height:calc(100dvh - 28px);padding:12px;display:grid;grid-template-rows:auto auto minmax(0,1fr);gap:10px}
 .monitor-top{display:flex;justify-content:space-between;gap:16px;align-items:center;min-width:0}
 .monitor-title{margin:0 0 4px;font-size:1.25rem;line-height:1.3}.monitor-subtitle{font-size:.8125rem;color:#94a3b8;line-height:1.4}
 .top-actions{display:flex;gap:8px;align-items:center}
@@ -207,4 +217,3 @@ body{margin:0;font-family:Inter,"PingFang SC","Microsoft YaHei",sans-serif;backg
   .monitor-page{height:auto;min-height:100dvh}
   .monitor-layout{grid-template-rows:repeat(2,20rem)}
 }
-

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { flushSync } from "react-dom";
 
 import { isAlarmSoundEnabled, playAlarmSound, setAlarmSoundEnabled, stopAlarmSound } from "@/lib/alarm-audio";
@@ -29,8 +29,6 @@ const LEGEND: Array<{ status: FlowStatus; label: string }> = [
 export function MonitorDashboard({ data }: { data: DashboardData }) {
   const [problemOnly, setProblemOnly] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(false);
-  const previousProblemCountRef = useRef<number | null>(null);
-  const problemCount = data.error + data.timeout;
   const [selected, setSelected] = useState<SelectedOperation | null>(null);
   const [hint, setHint] = useState("");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -95,9 +93,12 @@ export function MonitorDashboard({ data }: { data: DashboardData }) {
 
   useEffect(() => setSoundEnabled(isAlarmSoundEnabled()), []);
   useEffect(() => {
-    if (previousProblemCountRef.current !== null && problemCount > previousProblemCountRef.current && soundEnabled) void playAlarmSound();
-    previousProblemCountRef.current = problemCount;
-  }, [problemCount, soundEnabled]);
+    setSelected((previous) => {
+      if (!previous) return null;
+      const flow = data.groups.flatMap((group) => group.all).find((item) => item.id === previous.flow.id);
+      return flow ? { flow, operation: flow.operations[previous.operation.index] } : null;
+    });
+  }, [data]);
 
   const toggleSound = async () => {
     if (soundEnabled) {
@@ -124,7 +125,6 @@ export function MonitorDashboard({ data }: { data: DashboardData }) {
           <button className={`sound-button ${soundEnabled ? "enabled" : ""}`} type="button" aria-pressed={soundEnabled} onClick={toggleSound}>
             {soundEnabled ? "🔊 关闭告警声音" : "🔇 开启告警声音"}
           </button>
-          <button className="sound-button test" type="button" onClick={playAlarmSound}>测试警报音</button>
           <a className="flow-screen-link" href="?screen=alerts">进入系统告警监控 →</a>
           <div className="metrics" aria-label="流程汇总">
             <Metric label="小流程总数" value={data.total} />
@@ -329,4 +329,3 @@ function OperationDetail({
     </div>
   );
 }
-
